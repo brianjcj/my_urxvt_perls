@@ -695,8 +695,6 @@ sub highlight {
 
         $row = $line->end + 1;
     }
-
-    $self->scr_bell;
 }
 
 
