@@ -427,8 +427,10 @@ sub find_next {
 		$self->screen_cur($line->coord_of($offset));
         $self->highlight;
 		status_area($self);
-		$self->want_refresh();
-	}
+        $self->want_refresh();
+	} else {
+        delete $self->{found};
+    }
 
 	return $found;
 }
