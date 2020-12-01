@@ -148,6 +148,9 @@ sub key_press {
             my $txt = $self->selection;
             unless ($txt) {
                 $txt = $self->get_clipboard;
+            } else {
+                $self->selection_beg(1, 0);
+                $self->selection_end(1, 0);
             }
             return unless $txt;
             $self->{search} .= $self->locale_decode($txt);
@@ -222,7 +225,11 @@ sub key_press {
 	} elsif ('gG0^$HML' =~ m/\Q$key\E/ ||
 			('fbdu' =~ m/\Q$key\E/ && $event->{state} & urxvt::ControlMask)) {
 		move_cursor($self, $key);
-	} elsif (lc($key) eq 'f') {
+	} elsif ($keysym == 0xff55) {  # page up
+        move_cursor($self, 'b')
+	} elsif ($keysym == 0xff56) {  # page down
+        move_cursor($self, 'f')
+    } elsif (lc($key) eq 'f') {
 		$self->{move_to} = 1;
 		$self->{move_dir} = $key eq 'F' ? -1 : 1;
 		status_area($self, $key);
