@@ -42,7 +42,23 @@ sub on_start{
 	$self->{patterns}{'e'} = qr/[^\w\s](?=\w)|\w(?=\W)|\S(?=\s|$)/;
 	$self->{patterns}{'E'} = qr/\S(?=\s|$)/;
 
+	$self->{paste_cmd} = $self->x_resource('clipboard.pastecmd') || 'xsel -ob';
+
 	()
+}
+
+
+sub get_clipboard {
+	my ($self) = @_;
+
+	my $str = `$self->{paste_cmd}`;
+	if ($? == 0) {
+        return $str;
+		$self->tt_paste($str);
+	} else {
+		print STDERR "error running '$self->{paste_cmd}': $!\n";
+        return "";
+	}
 }
 
 
@@ -68,11 +84,27 @@ sub on_user_command {
 }
 
 
+sub do_search {
+	my ($self) = @_;
+    my $txt = substr($self->{search}, 1);
+    if ($txt) {
+        $self->{pattern} = ($txt =~ m/[[:upper:]]/) ? qr/\Q$txt\E/ :
+            qr/\Q$txt\E/i;
+    } elsif ($self->{pattern}) {
+        delete $self->{pattern};
+        delete $self->{found};
+    }
+    $self->screen_cur($self->{srhcr}, $self->{srhcc});
+    find_next($self);
+    status_area($self);
+}
+
+
 sub key_press {
 	my ($self, $event, $keysym, $char) = @_;
 	my $key = chr($keysym);
 
-    warn "key_press: ", $key, ", keysym: ", $keysym, ", char: ", $char;
+    # warn "key_press: ", $key, ", keysym: ", $keysym, ", char: ", $char;
 
 	if (lc($key) eq 'c' && $event->{state} & urxvt::ControlMask) {
 		deactivate($self);
@@ -110,19 +142,19 @@ sub key_press {
 					status_area($self);
 				}
 			}
-		} elsif (length($char) > 0) {
+		} elsif ((lc($key) eq 'v' && $event->{state} & urxvt::ControlMask
+                  && $event->{state} & urxvt::ShiftMask) || ($keysym == 0xff63)) {
+            # C-S-V or S-insert
+            my $txt = $self->selection;
+            unless ($txt) {
+                $txt = $self->get_clipboard;
+            }
+            return unless $txt;
+            $self->{search} .= $self->locale_decode($txt);
+            $self->do_search;
+        } elsif (length($char) > 0) {
 			$self->{search} .= $self->locale_decode($char);
-			my $txt = substr($self->{search}, 1);
-			if ($txt) {
-				$self->{pattern} = ($txt =~ m/[[:upper:]]/) ? qr/\Q$txt\E/ :
-				qr/\Q$txt\E/i;
-			} elsif ($self->{pattern}) {
-				delete $self->{pattern};
-                delete $self->{found};
-			}
-			$self->screen_cur($self->{srhcr}, $self->{srhcc});
-			find_next($self);
-			status_area($self);
+            $self->do_search;
 		}
 	} elsif ($self->{move_to}) {
 		if ($keysym == 0xff1b) {
@@ -444,7 +476,7 @@ sub refresh {
 		}
 	}
 
-    $self->refresh_2;
+    $self->refresh_hl;
 
 	()
 }
@@ -616,20 +648,23 @@ sub calc_span {
 	return ($br, $bc, $er, $ec);
 }
 
+
 sub on_view_change {
     my ($self, $offset) = @_;
     $self->highlight;
 }
+
 
 sub on_reset {
     my ($self, $offset) = @_;
     $self->highlight;
 }
 
+
 sub highlight {
     my ($self) = @_;
 
-    warn "hl: ", $self->{search}, ", patern: ", $self->{pattern};
+    # warn "hl: ", $self->{search}, ", patern: ", $self->{pattern};
 
     return unless $self->{pattern};
 
@@ -658,7 +693,7 @@ sub highlight {
 }
 
 
-sub refresh_2 {
+sub refresh_hl {
    my ($self) = @_;
 
    return unless $self->{found};
