@@ -72,6 +72,8 @@ sub key_press {
 	my ($self, $event, $keysym, $char) = @_;
 	my $key = chr($keysym);
 
+    warn "key_press: ", $key, ", keysym: ", $keysym, ", char: ", $char;
+
 	if (lc($key) eq 'c' && $event->{state} & urxvt::ControlMask) {
 		deactivate($self);
 	} elsif ($self->{search}) {
@@ -97,6 +99,7 @@ sub key_press {
 						qr/\Q$txt\E/i;
 			} elsif ($self->{pattern}) {
 				delete $self->{pattern};
+                delete $self->{found};
 			}
 			$self->{search} = '';
 			$self->screen_cur($self->{srhcr}, $self->{srhcc});
@@ -115,6 +118,7 @@ sub key_press {
 				qr/\Q$txt\E/i;
 			} elsif ($self->{pattern}) {
 				delete $self->{pattern};
+                delete $self->{found};
 			}
 			$self->screen_cur($self->{srhcr}, $self->{srhcc});
 			find_next($self);
@@ -201,6 +205,8 @@ sub key_press {
 		find_next($self, $self->{search_dir} * ($key eq 'N' ? -1 : 1));
 	}
 
+    $self->highlight;  # TODO: optimize
+
 	return 1;
 }
 
@@ -262,7 +268,7 @@ sub move_cursor {
 
 	status_area($self);
 	$self->want_refresh();
-	
+
 	()
 }
 
@@ -438,6 +444,8 @@ sub refresh {
 		}
 	}
 
+    $self->refresh_2;
+
 	()
 }
 
@@ -504,6 +512,9 @@ sub deactivate {
 	$self->view_start($self->{old_view_start});
 	$self->pty_ev_events($self->{old_pty_ev_events});
 
+    delete $self->{found};
+    delete $self->{pattern};
+
 	$self->want_refresh();
 
 	$self->{active} = 0;
@@ -534,7 +545,7 @@ sub status_area {
 			$stat .= sprintf("%2d%%",
 					($self->top_row - $self->view_start) * 100 / $self->top_row);
 		}
-		
+
 		$stat = "$extra $stat" if $extra;
 		$stat_len = length($stat);
 	}
@@ -576,7 +587,7 @@ sub calc_span {
 	my ($self) = @_;
 	my ($cr, $cc) = $self->screen_cur();
 	my ($br, $bc, $er, $ec);
-	
+
 	if ($self->{select} eq 'b') {
 		$br = $self->line($cr)->beg;
 		$bc = $self->line($cr)->offset_of($cr, $cc);
@@ -603,4 +614,60 @@ sub calc_span {
 	}
 
 	return ($br, $bc, $er, $ec);
+}
+
+sub on_view_change {
+    my ($self, $offset) = @_;
+    $self->highlight;
+}
+
+sub on_reset {
+    my ($self, $offset) = @_;
+    $self->highlight;
+}
+
+sub highlight {
+    my ($self) = @_;
+
+    warn "hl: ", $self->{search}, ", patern: ", $self->{pattern};
+
+    return unless $self->{pattern};
+
+    my $re = $self->{pattern};
+
+    my $row = $self->view_start;
+
+    delete $self->{found};
+
+    while ($self->nrow > $row && $row >= $self->top_row) {
+        my $line = $self->line ($row)
+            or last;
+
+        my $text = $line->t;
+        if ($text =~ /$re/g) {
+            do {
+                push @{ $self->{found} }, [$line->coord_of ($-[0]), $line->coord_of ($+[0])];
+            } while $text =~ /$re/g;
+
+        }
+
+        $row = $line->end + 1;
+    }
+
+    $self->scr_bell;
+}
+
+
+sub refresh_2 {
+   my ($self) = @_;
+
+   return unless $self->{found};
+
+   my $xor = urxvt::RS_RVid; # | urxvt::RS_Blink;
+   for (@{ $self->{found} }) {
+      $self->scr_xor_span (@$_, $xor);
+      $xor = urxvt::RS_RVid;
+   }
+
+   ()
 }
