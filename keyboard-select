@@ -476,7 +476,7 @@ sub refresh {
 		}
 	}
 
-    $self->refresh_hl;
+	$self->refresh_hl;
 
 	()
 }
@@ -694,15 +694,14 @@ sub highlight {
 
 
 sub refresh_hl {
-   my ($self) = @_;
+    my ($self) = @_;
 
-   return unless $self->{found};
+    return unless $self->{found};
 
-   my $xor = urxvt::RS_RVid; # | urxvt::RS_Blink;
-   for (@{ $self->{found} }) {
-      $self->scr_xor_span (@$_, $xor);
-      $xor = urxvt::RS_RVid;
-   }
+    my $xor = urxvt::RS_RVid;
+    for (@{ $self->{found} }) {
+        $self->scr_xor_span (@$_, $xor);
+    }
 
-   ()
+    ()
 }

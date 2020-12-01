@@ -3,6 +3,6 @@
 ## keyboard-select
 
 Hack the official one to support:
-1. Highlight all matches.
-2. Paste clipboard/selection to search prompt.
+1. Highlight all matches of search.
+2. Paste clipboard/selection to search prompt (Ctrl-Shift-v or Shift-Insert to paste).
 
