@@ -42,23 +42,7 @@ sub on_start{
 	$self->{patterns}{'e'} = qr/[^\w\s](?=\w)|\w(?=\W)|\S(?=\s|$)/;
 	$self->{patterns}{'E'} = qr/\S(?=\s|$)/;
 
-	$self->{paste_cmd} = $self->x_resource('clipboard.pastecmd') || 'xsel -ob';
-
 	()
-}
-
-
-sub get_clipboard {
-	my ($self) = @_;
-
-	my $str = `$self->{paste_cmd}`;
-	if ($? == 0) {
-        return $str;
-		$self->tt_paste($str);
-	} else {
-		print STDERR "error running '$self->{paste_cmd}': $!\n";
-        return "";
-	}
 }
 
 
@@ -146,15 +130,15 @@ sub key_press {
                   && $event->{state} & urxvt::ShiftMask) || ($keysym == 0xff63)) {
             # C-S-V or S-insert
             my $txt = $self->selection;
-            unless ($txt) {
-                $txt = $self->get_clipboard;
-            } else {
+            if ($txt) {
                 $self->selection_beg(1, 0);
                 $self->selection_end(1, 0);
             }
-            return unless $txt;
-            $self->{search} .= $self->locale_decode($txt);
-            $self->do_search;
+            if ($keysym == 0xff63) {
+                $self->selection_request($event.time, 1); # primary
+            } else {
+                $self->selection_request($event.time, 3); # clipboard
+            }
         } elsif (length($char) > 0) {
 			$self->{search} .= $self->locale_decode($char);
             $self->do_search;
@@ -529,6 +513,9 @@ sub activate {
 		refresh_begin => \&refresh,
 		refresh_end   => \&refresh,
 		tt_write      => \&tt_write,
+		tt_paste      => \&tt_paste,
+		reset         => \&reset,
+		view_change   => \&view_change,
 	);
 
 	if ($self->{offset} >= $line->l) {
@@ -552,7 +539,7 @@ sub deactivate {
 
 	delete $self->{overlay} if $self->{overlay};
 
-	$self->disable("key_press", "refresh_begin", "refresh_end", "tt_write");
+	$self->disable("key_press", "refresh_begin", "refresh_end", "tt_write", "tt_paste", "reset", "view_change");
 	$self->screen_cur($self->{oldcr}, $self->{oldcc});
 	$self->view_start($self->{old_view_start});
 	$self->pty_ev_events($self->{old_pty_ev_events});
@@ -662,13 +649,13 @@ sub calc_span {
 }
 
 
-sub on_view_change {
+sub view_change {
     my ($self, $offset) = @_;
     $self->highlight;
 }
 
 
-sub on_reset {
+sub reset {
     my ($self, $offset) = @_;
     $self->highlight;
 }
@@ -717,4 +704,14 @@ sub refresh_hl {
     }
 
     ()
+}
+
+
+sub tt_paste {
+    my ($self, $data) = @_;
+
+    if ($self->{search}) {
+        $self->{search} .= $self->locale_decode($data);
+        $self->do_search;
+    }
 }
