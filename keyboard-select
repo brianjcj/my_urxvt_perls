@@ -652,12 +652,16 @@ sub calc_span {
 sub view_change {
     my ($self, $offset) = @_;
     $self->highlight;
+
+    ()
 }
 
 
 sub reset {
     my ($self, $offset) = @_;
     $self->highlight;
+
+    ()
 }
 
 
@@ -714,4 +718,6 @@ sub tt_paste {
         $self->{search} .= $self->locale_decode($data);
         $self->do_search;
     }
+
+    ()
 }
