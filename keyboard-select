@@ -425,12 +425,11 @@ sub find_next {
 		$self->{dollar} = 0;
 		$self->{offset} = $offset;
 		$self->screen_cur($line->coord_of($offset));
-        $self->highlight;
 		status_area($self);
         $self->want_refresh();
-	} else {
-        delete $self->{found};
     }
+
+    $self->highlight;
 
 	return $found;
 }
