@@ -411,6 +411,8 @@ sub find_next {
 		$self->screen_cur($line->coord_of($offset));
 		status_area($self);
         $self->want_refresh();
+    } else {
+        $self->scr_bell;
     }
 
     $self->highlight;
